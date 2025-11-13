@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>말롱이의 과일 찾기 (텍스트 정렬 수정)</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background: #333; 
+        }
+    </style>
+</head>
+<body>
+
+<script>
+class GameScene extends Phaser.Scene {
+    constructor() {
+        super('GameScene');
+        
+        this.score = 0;
+        this.gameTime = 40;         
+        this.gameTimer = 40;        
+        this.isGameStarted = false;
+        this.isGameOver = false;
+        this.pockets = [];
+        this.currentAnswer = 0; 
+        this.consecutiveCorrect = 0;
+    }
+
+    preload() { 
+        // 이미지 로딩은 이 곳에서 합니다. (지금은 샘플)
+    } 
+
+    create() {
+        const gameWidth = this.cameras.main.width;
+        const gameHeight = this.cameras.main.height;
+        const centerX = gameWidth / 2;
+
+        // 상단 바 (높이 100)
+        this.add.rectangle(centerX, 50, gameWidth, 100, 0x555555).setOrigin(0.5);
+        
+        // 💡 [수정] (요청 1)
+        // 'Q:' 텍스트를 왼쪽에 고정
+        this.questionLabel = this.add.text(80, 50, 'Q:', {
+            fontSize: '48px', fill: '#FFFFFF', fontStyle: 'bold'
+        }).setOrigin(0, 0.5); 
+        
+        // 💡 [수정] (요청 1)
+        // '문제' 텍스트를 중앙에 별도로 생성 (처음엔 비어있음)
+        this.questionProblem = this.add.text(centerX, 50, '', {
+            fontSize: '48px', fill: '#FFFFFF', fontStyle: 'bold'
+        }).setOrigin(0.5); // 0.5 = 중앙 정렬
+        
+        const timerBarY = gameHeight - 30;
+        const timerBarWidth = gameWidth - 100;
+        this.timerBg = this.add.rectangle(centerX, timerBarY, timerBarWidth, 20, 0x404040);
+        this.timerBar = this.add.rectangle(this.timerBg.x - this.timerBg.width / 2, timerBarY, timerBarWidth, 20, 0x00FF00)
+            .setOrigin(0, 0.5);
+
+        const tableY = timerBarY - 50; 
+        const tableHeight = 40;
+        const tableTopY = tableY - (tableHeight / 2); 
+
+        this.table = this.add.rectangle(centerX, tableY, gameWidth - 50, tableHeight, 0x666666)
+            .setOrigin(0.5)
+            .setDepth(10); 
+
+        const bowlHeight = 50;
+        this.bowl = this.add.rectangle(centerX, tableTopY - (bowlHeight / 2), 180, bowlHeight, 0x8B4513)
+            .setOrigin(0.5)
+            .setDepth(5); 
+            
+        const malongHeight = 150;
+        this.malong = this.add.rectangle(this.bowl.x - 120, tableTopY - (malongHeight / 2), 100, malongHeight, 0x9966ff)
+            .setOrigin(0.5)
+            .setDepth(5);
+            
+        this.readyOverlay = this.add.rectangle(centerX, gameHeight / 2, gameWidth, gameHeight, 0x000000, 0.6)
+            .setDepth(100); 
+
+        this.readyText = this.add.text(centerX, gameHeight / 2, 'READY?', {
+            fontSize: '100px', fill: '#FFFFFF', fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(101);
+
+        this.time.delayedCall(3000, this.startGame, [], this);
+        
+        this.spawnPocketsWithQuestion(false); 
+    }
+    
+    startGame() {
+        this.isGameStarted = true; 
+        this.readyOverlay.destroy();
+        this.readyText.destroy();
+        
+        this.pockets.forEach(p => {
+            p.setVisible(true);
+            p.label.setVisible(true);
+        });
+
+        this.setupTimers();
+    }
+    
+    setupTimers() {
+        // ... (이전과 동일) ...
+        this.time.addEvent({
+            delay: 1000,
+            callback: () => {
+                if (!this.isGameStarted || this.isGameOver) return; 
+                this.gameTimer--; 
+                this.timerBar.scaleX = this.gameTimer / this.gameTime;
+                if (this.timerBar.scaleX <= 0.3) {
+                    this.timerBar.setFillStyle(0xFF0000);
+                }
+            },
+            loop: true
+        });
+        this.time.delayedCall(this.gameTime * 1000, this.endGame, [], this);
+    }
+    
+    generateMathQuestion() {
+        // ... (이전과 동일) ...
+        const num1 = Phaser.Math.Between(1, 15);
+        const num2 = Phaser.Math.Between(1, 15);
+        const operators = ['+', '-', '*'];
+        const operator = Phaser.Utils.Array.GetRandom(operators);
+        let answer = 0;
+        let questionString = "";
+        switch (operator) {
+            case '+': answer = num1 + num2; questionString = `${num1} + ${num2}`; break;
+            case '-': answer = num1 - num2; questionString = `${num1} - ${num2}`; break;
+            case '*': answer = num1 * num2; questionString = `${num1} * ${num2}`; break;
+        }
+        const options = [answer];
+        while (options.length < 4) {
+            let distractor = answer + Phaser.Math.Between(-10, 10);
+            if (distractor >= 0 && distractor !== answer && !options.includes(distractor)) {
+                options.push(distractor);
+            }
+        }
+        Phaser.Utils.Array.Shuffle(options); 
+        return { question: questionString, answer: answer, options: options };
+    }
+    
+    spawnPocketsWithQuestion(showPockets = true) {
+        
+        if (this.isGameOver) return;
+
+        this.pockets.forEach(p => {
+            if (p && p.label) { 
+                p.label.destroy();
+            }
+            if (p) { 
+                p.destroy();
+            }
+        });
+        this.pockets = [];
+        
+        const questionData = this.generateMathQuestion();
+        
+        // 💡 [수정] (요청 1)
+        // 중앙 정렬된 '문제' 텍스트 객체의 내용만 변경
+        this.questionProblem.setText(`${questionData.question} = ?`);
+        this.currentAnswer = questionData.answer;
+        
+        let isSpecialRound = false;
+        if (this.consecutiveCorrect >= 5) {
+            isSpecialRound = true;
+            this.consecutiveCorrect = 0;
+        }
+        
+        for (let i = 0; i < 4; i++) { 
+            const xPos = (this.cameras.main.width / 5) * (i + 1); 
+            // Y 위치 (상단 바 100px + 여유공간 150px)
+            const yPos = 250; 
+            
+            let pocketColor = 0x808080;
+            if (isSpecialRound) {
+                pocketColor = 0xFFD700;
+            }
+            const pocket = this.add.rectangle(xPos, yPos, 120, 120, pocketColor)
+                .setOrigin(0.5)
+                .setInteractive({ useHandCursor: true })
+                .setVisible(showPockets)
+                .setStrokeStyle(4, 0x000000, 0); 
+            
+            pocket.label = this.add.text(xPos, yPos, questionData.options[i], {
+                fontSize: '28px', fill: '#000000', fontStyle: 'bold'
+            }).setOrigin(0.5).setVisible(showPockets);
+            
+            if (isSpecialRound) {
+                this.tweens.add({
+                    targets: [pocket, pocket.label],
+                    scale: 1.1,
+                    duration: 300,
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.easeInOut'
+                });
+            }
+            
+            pocket.setData('value', questionData.options[i]);
+            pocket.setData('isSpecial', isSpecialRound); 
+            
+            pocket.on('pointerdown', () => {
+                this.onPocketClicked(pocket);
+            });
+            this.pockets.push(pocket);
+        }
+    }
+    
+    onPocketClicked(clickedPocket) {
+        // ... (이전과 동일) ...
+        if (!this.isGameStarted || this.isGameOver || !clickedPocket.active) return;
+        this.pockets.forEach(p => {
+            p.disableInteractive(); 
+            if (p === clickedPocket) {
+                p.setStrokeStyle(4, 0xFFFFFF, 1); 
+            } else {
+                p.setScale(0.8); 
+                p.setAlpha(0.5); 
+            }
+        });
+        const selectedValue = clickedPocket.getData('value');
+        const isSpecial = clickedPocket.getData('isSpecial');
+        if (selectedValue === this.currentAnswer) {
+            clickedPocket.setFillStyle(0x00FF00); 
+            this.handleCorrect(isSpecial);
+        } else {
+            clickedPocket.setFillStyle(0xFF0000); 
+            this.handleIncorrect();
+        }
+        this.time.delayedCall(800, this.spawnPocketsWithQuestion, [true], this);
+    }
+    
+    handleCorrect(isSpecial) {
+        const fruitValue = isSpecial ? 3 : 1;
+        this.score += fruitValue;
+        this.consecutiveCorrect++;
+        this.updateBowlGraphic();
+        this.updateMalongStatus();
+    }
+    
+    handleIncorrect() {
+        this.malong.setFillStyle(0x555555); 
+        this.consecutiveCorrect = 0;
+        this.time.delayedCall(800, this.updateMalongStatus, [], this);
+    }
+    
+    updateBowlGraphic() {
+        // ... (이전과 동일) ...
+        let scoreKey = Math.min(this.score, 15);
+        const fruitColors = [
+            0x8B4513, // 0점 (빈 그릇)
+            0x9400D3, // 1점 (포도)
+            0xFF0000, // 2점 (사과)
+            0xFFA500, // 3점 (오렌지)
+            0xFFFF00, // 4점 (바나나)
+            0x00FF00, // 5점 (라임)
+            0x0000FF, // 6점 (블루베리)
+            0x800080, // 7점
+            0xFFC0CB, // 8점
+            0x00FFFF, // 9점
+            0x808000, // 10점
+            0xFFA07A, // 11점
+            0xFF6347, // 12점
+            0xDA70D6, // 13점
+            0xADFF2F, // 14점
+            0x4682B4  // 15점 (최대)
+        ];
+        this.bowl.setFillStyle(fruitColors[scoreKey]);
+    }
+
+    updateMalongStatus() {
+        // ... (이전과 동일) ...
+        if (this.isGameOver) {
+             this.malong.setFillStyle(0x00FF00);
+             return;
+        }
+        if (this.score >= 9) {
+            this.malong.setFillStyle(0x00FF00); 
+        } else if (this.score >= 6) {
+            this.malong.setFillStyle(0xFFFF00);
+        } else if (this.score >= 3) {
+            this.malong.setFillStyle(0xFFA500); 
+        } else {
+            this.malong.setFillStyle(0x9966ff); 
+        }
+    }
+    
+    endGame() {
+        this.isGameStarted = false; 
+        this.isGameOver = true;
+        this.updateMalongStatus(); 
+        
+        this.timerBg.setVisible(false);
+        this.timerBar.setVisible(false);
+        // 💡 [수정] (요청 1)
+        // 두 개의 텍스트 객체를 모두 숨김
+        this.questionLabel.setVisible(false);
+        this.questionProblem.setVisible(false);
+        
+        this.pockets.forEach(p => {
+            if (p && p.label) p.label.destroy();
+            if (p) p.destroy();
+        });
+        this.pockets = [];
+
+        // 💡 [수정] (요청 2)
+        // 점수 텍스트 Y 위치를 350으로 변경 (주머니 아래쪽, 그릇보다 훨씬 위)
+        const scoreTextY = 350; 
+        const scoreText = this.add.text(this.bowl.x, scoreTextY, `과일 ${this.score}개!`, {
+            fontSize: '40px', fill: '#FFFF00', fontStyle: 'bold',
+            stroke: '#000000', strokeThickness: 4
+        }).setOrigin(0.5);
+
+        this.time.delayedCall(3000, () => {
+            if (scoreText) scoreText.setVisible(false);
+            
+            this.add.rectangle(this.cameras.main.width / 2, this.cameras.main.height / 2, this.cameras.main.width, this.cameras.main.height, 0x000000, 0.6)
+                .setDepth(100);
+
+            this.add.text(this.cameras.main.width / 2, this.cameras.main.height / 2, 'FINISH!', {
+                fontSize: '100px', fill: '#FFFFFF', fontStyle: 'bold'
+            }).setOrigin(0.5).setDepth(101);
+            
+        }, [], this);
+    }
+}
+
+
+const config = {
+    type: Phaser.AUTO,
+    backgroundColor: '#0055AA', 
+    scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+        width: 1280, 
+        height: 720  
+    },
+    scene: [GameScene]
+};
+
+const game = new Phaser.Game(config);
+
+</script>
+</body>
+</html>
