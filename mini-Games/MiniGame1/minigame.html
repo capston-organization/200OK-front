@@ -1,350 +1,466 @@
 <!DOCTYPE html>
 <html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <title>말롱이의 과일 찾기 (텍스트 정렬 수정)</title>
+  <head>
+    <meta charset="UTF-8" />
+    <title>말롱이의 과일 찾기 (배치 유지 + 버그 수정)</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
     <style>
-        html, body {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            background: #333; 
-        }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        background: #000;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
+    <script>
+      const SCALE = {
+        POCKET: 1.0,
+        MALONG: 1.0,
+        BOWL: 1.0,
+        TABLE: 1.0,
+        TIMER: 1.0,
+      };
 
-<script>
-class GameScene extends Phaser.Scene {
-    constructor() {
-        super('GameScene');
-        
-        this.score = 0;
-        this.gameTime = 40;         
-        this.gameTimer = 40;        
-        this.isGameStarted = false;
-        this.isGameOver = false;
-        this.pockets = [];
-        this.currentAnswer = 0; 
-        this.consecutiveCorrect = 0;
-    }
+      class GameScene extends Phaser.Scene {
+        constructor() {
+          super("GameScene");
+          this.score = 0;
+          this.gameTime = 40;
+          this.gameTimer = 40;
+          this.isGameStarted = false;
+          this.isGameOver = false;
+          this.pockets = [];
+          this.currentAnswer = 0;
+          this.consecutiveCorrect = 0;
+          this.isProcessingTurn = false; // 💡 중복 클릭 방지 플래그
+          this.fruitStep = 0; // 💡 과일 단계 변수
+        }
 
-    preload() { 
-        // 이미지 로딩은 이 곳에서 합니다. (지금은 샘플)
-    } 
+        preload() {
+          this.load.setPath("assets/Sprites/");
 
-    create() {
-        const gameWidth = this.cameras.main.width;
-        const gameHeight = this.cameras.main.height;
-        const centerX = gameWidth / 2;
+          this.load.image("background", "Background.png");
+          this.load.image("quiz_board", "QuizBoard.png");
+          this.load.image("quiz_icon", "QuizIcon.png");
+          this.load.image("timer_graphic", "timerGraphic.png");
+          this.load.image("table", "table.png");
 
-        // 상단 바 (높이 100)
-        this.add.rectangle(centerX, 50, gameWidth, 100, 0x555555).setOrigin(0.5);
-        
-        // 💡 [수정] (요청 1)
-        // 'Q:' 텍스트를 왼쪽에 고정
-        this.questionLabel = this.add.text(80, 50, 'Q:', {
-            fontSize: '48px', fill: '#FFFFFF', fontStyle: 'bold'
-        }).setOrigin(0, 0.5); 
-        
-        // 💡 [수정] (요청 1)
-        // '문제' 텍스트를 중앙에 별도로 생성 (처음엔 비어있음)
-        this.questionProblem = this.add.text(centerX, 50, '', {
-            fontSize: '48px', fill: '#FFFFFF', fontStyle: 'bold'
-        }).setOrigin(0.5); // 0.5 = 중앙 정렬
-        
-        const timerBarY = gameHeight - 30;
-        const timerBarWidth = gameWidth - 100;
-        this.timerBg = this.add.rectangle(centerX, timerBarY, timerBarWidth, 20, 0x404040);
-        this.timerBar = this.add.rectangle(this.timerBg.x - this.timerBg.width / 2, timerBarY, timerBarWidth, 20, 0x00FF00)
-            .setOrigin(0, 0.5);
+          this.load.image("malong_default", "malong_default.png");
+          this.load.image("malong_sad", "malong_sad.png");
+          this.load.image("malong_happy", "malong_happy.png");
 
-        const tableY = timerBarY - 50; 
-        const tableHeight = 40;
-        const tableTopY = tableY - (tableHeight / 2); 
+          this.load.image("defaultPack_lock", "defaultPack_lock.png");
+          this.load.image("defaultPack_open", "defaultPack_open.png");
+          this.load.image("goodPack_lock", "goodPack_lock.png");
+          this.load.image("goodPack_open", "goodPack_open.png");
 
-        this.table = this.add.rectangle(centerX, tableY, gameWidth - 50, tableHeight, 0x666666)
+          this.load.image("bowl0", "bowl0.png");
+          for (let i = 1; i <= 15; i++) {
+            this.load.image(`bowl${i}`, `bowl${i}.png`);
+            this.load.image(`fruit${i}`, `fruit${i}.png`);
+          }
+        }
+
+        create() {
+          const gameWidth = 1920;
+          const gameHeight = 1080;
+          const centerX = gameWidth / 2;
+
+          // 1. 배경
+          this.add
+            .image(centerX, gameHeight / 2, "background")
+            .setDisplaySize(gameWidth, gameHeight)
+            .setDepth(0);
+
+          // [1] 상단 문제판
+          const boardY = 130;
+          this.quizBoard = this.add
+            .image(centerX, boardY, "quiz_board")
             .setOrigin(0.5)
-            .setDepth(10); 
+            .setDepth(10);
+          this.quizIcon = this.add
+            .image(centerX - 800, boardY, "quiz_icon")
+            .setOrigin(0.5)
+            .setDepth(11);
+          this.questionProblem = this.add
+            .text(centerX + 50, boardY, "", {
+              fontSize: "80px",
+              fill: "#FFFFFF",
+              fontStyle: "bold",
+              fontFamily: "Arial",
+              stroke: "#000000",
+              strokeThickness: 6,
+            })
+            .setOrigin(0.5)
+            .setDepth(12);
 
-        const bowlHeight = 50;
-        this.bowl = this.add.rectangle(centerX, tableTopY - (bowlHeight / 2), 180, bowlHeight, 0x8B4513)
-            .setOrigin(0.5)
-            .setDepth(5); 
-            
-        const malongHeight = 150;
-        this.malong = this.add.rectangle(this.bowl.x - 120, tableTopY - (malongHeight / 2), 100, malongHeight, 0x9966ff)
-            .setOrigin(0.5)
+          // [2] 테이블
+          const tableY = 980;
+          this.table = this.add
+            .image(centerX, tableY, "table")
+            .setOrigin(0.5, 1)
+            .setScale(SCALE.TABLE)
+            .setDepth(10);
+          const tableSurfaceY = tableY - this.table.displayHeight * 0.85;
+
+          // [3] 말롱이 & 그릇
+          this.malong = this.add
+            .image(centerX - 200, tableSurfaceY + 70, "malong_default")
+            .setOrigin(0.5, 1)
+            .setScale(SCALE.MALONG)
             .setDepth(5);
-            
-        this.readyOverlay = this.add.rectangle(centerX, gameHeight / 2, gameWidth, gameHeight, 0x000000, 0.6)
-            .setDepth(100); 
+          this.bowl = this.add
+            .image(centerX + 100, tableSurfaceY, "bowl0")
+            .setOrigin(0.5, 1)
+            .setScale(SCALE.BOWL)
+            .setDepth(11);
 
-        this.readyText = this.add.text(centerX, gameHeight / 2, 'READY?', {
-            fontSize: '100px', fill: '#FFFFFF', fontStyle: 'bold'
-        }).setOrigin(0.5).setDepth(101);
+          // [4] 타이머
+          const timerY = 960;
+          this.timerBgGraphic = this.add
+            .image(centerX, timerY, "timer_graphic")
+            .setOrigin(0.5)
+            .setScale(SCALE.TIMER)
+            .setDepth(30);
 
-        this.time.delayedCall(3000, this.startGame, [], this);
-        
-        this.spawnPocketsWithQuestion(false); 
-    }
-    
-    startGame() {
-        this.isGameStarted = true; 
-        this.readyOverlay.destroy();
-        this.readyText.destroy();
-        
-        this.pockets.forEach(p => {
+          const bgWidth = this.timerBgGraphic.displayWidth;
+          const bgHeight = this.timerBgGraphic.displayHeight;
+          this.timerBarWidth = bgWidth * 0.95;
+          this.timerBarHeight = bgHeight * 0.35;
+
+          this.timerBar = this.add
+            .rectangle(
+              centerX - this.timerBarWidth / 2,
+              timerY + 40,
+              this.timerBarWidth,
+              this.timerBarHeight,
+              0x00ff00
+            )
+            .setOrigin(0, 0.5)
+            .setDepth(31);
+
+          // [5] READY 화면
+          this.readyOverlay = this.add
+            .rectangle(
+              centerX,
+              gameHeight / 2,
+              gameWidth,
+              gameHeight,
+              0x000000,
+              0.6
+            )
+            .setDepth(100);
+          this.readyText = this.add
+            .text(centerX, gameHeight / 2, "READY?", {
+              fontSize: "150px",
+              fill: "#FFFFFF",
+              fontStyle: "bold",
+              stroke: "#000000",
+              strokeThickness: 10,
+            })
+            .setOrigin(0.5)
+            .setDepth(101);
+
+          this.time.delayedCall(3000, this.startGame, [], this);
+          this.spawnPocketsWithQuestion(false);
+        }
+
+        startGame() {
+          this.isGameStarted = true;
+          this.readyOverlay.destroy();
+          this.readyText.destroy();
+          this.pockets.forEach((p) => {
             p.setVisible(true);
-            p.label.setVisible(true);
-        });
+            if (p.label) p.label.setVisible(true);
+          });
+          this.setupTimers();
+        }
 
-        this.setupTimers();
-    }
-    
-    setupTimers() {
-        // ... (이전과 동일) ...
-        this.time.addEvent({
+        setupTimers() {
+          this.time.addEvent({
             delay: 1000,
             callback: () => {
-                if (!this.isGameStarted || this.isGameOver) return; 
-                this.gameTimer--; 
-                this.timerBar.scaleX = this.gameTimer / this.gameTime;
-                if (this.timerBar.scaleX <= 0.3) {
-                    this.timerBar.setFillStyle(0xFF0000);
-                }
+              if (!this.isGameStarted || this.isGameOver) return;
+              this.gameTimer--;
+              this.timerBar.scaleX = this.gameTimer / this.gameTime;
+              if (this.timerBar.scaleX <= 0.3)
+                this.timerBar.setFillStyle(0xff0000);
             },
-            loop: true
-        });
-        this.time.delayedCall(this.gameTime * 1000, this.endGame, [], this);
-    }
-    
-    generateMathQuestion() {
-        // ... (이전과 동일) ...
-        const num1 = Phaser.Math.Between(1, 15);
-        const num2 = Phaser.Math.Between(1, 15);
-        const operators = ['+', '-', '*'];
-        const operator = Phaser.Utils.Array.GetRandom(operators);
-        let answer = 0;
-        let questionString = "";
-        switch (operator) {
-            case '+': answer = num1 + num2; questionString = `${num1} + ${num2}`; break;
-            case '-': answer = num1 - num2; questionString = `${num1} - ${num2}`; break;
-            case '*': answer = num1 * num2; questionString = `${num1} * ${num2}`; break;
+            loop: true,
+          });
+          this.time.delayedCall(this.gameTime * 1000, this.endGame, [], this);
         }
-        const options = [answer];
-        while (options.length < 4) {
-            let distractor = answer + Phaser.Math.Between(-10, 10);
-            if (distractor >= 0 && distractor !== answer && !options.includes(distractor)) {
-                options.push(distractor);
-            }
-        }
-        Phaser.Utils.Array.Shuffle(options); 
-        return { question: questionString, answer: answer, options: options };
-    }
-    
-    spawnPocketsWithQuestion(showPockets = true) {
-        
-        if (this.isGameOver) return;
 
-        this.pockets.forEach(p => {
-            if (p && p.label) { 
-                p.label.destroy();
-            }
-            if (p) { 
-                p.destroy();
-            }
-        });
-        this.pockets = [];
-        
-        const questionData = this.generateMathQuestion();
-        
-        // 💡 [수정] (요청 1)
-        // 중앙 정렬된 '문제' 텍스트 객체의 내용만 변경
-        this.questionProblem.setText(`${questionData.question} = ?`);
-        this.currentAnswer = questionData.answer;
-        
-        let isSpecialRound = false;
-        if (this.consecutiveCorrect >= 5) {
-            isSpecialRound = true;
-            this.consecutiveCorrect = 0;
+        generateMathQuestion() {
+          const num1 = Phaser.Math.Between(1, 15);
+          const num2 = Phaser.Math.Between(1, 15);
+          const operators = ["+", "-", "*"];
+          const operator = Phaser.Utils.Array.GetRandom(operators);
+          let answer = 0;
+          let qStr = "";
+          switch (operator) {
+            case "+":
+              answer = num1 + num2;
+              qStr = `${num1} + ${num2}`;
+              break;
+            case "-":
+              answer = num1 - num2;
+              qStr = `${num1} - ${num2}`;
+              break;
+            case "*":
+              answer = num1 * num2;
+              qStr = `${num1} * ${num2}`;
+              break;
+          }
+          const options = [answer];
+          while (options.length < 4) {
+            let d = answer + Phaser.Math.Between(-10, 10);
+            if (d >= 0 && d !== answer && !options.includes(d)) options.push(d);
+          }
+          Phaser.Utils.Array.Shuffle(options);
+          return { question: qStr, answer: answer, options: options };
         }
-        
-        for (let i = 0; i < 4; i++) { 
-            const xPos = (this.cameras.main.width / 5) * (i + 1); 
-            // Y 위치 (상단 바 100px + 여유공간 150px)
-            const yPos = 250; 
-            
-            let pocketColor = 0x808080;
-            if (isSpecialRound) {
-                pocketColor = 0xFFD700;
+
+        spawnPocketsWithQuestion(showPockets = true) {
+          if (this.isGameOver) return;
+
+          // 💡 [안전장치 1] 플래그 해제 (새 라운드 시작)
+          this.isProcessingTurn = false;
+
+          // 💡 [안전장치 2] 안전하게 객체 삭제 (Try-Catch & 애니메이션 제거)
+          try {
+            this.pockets.forEach((p) => {
+              if (p) {
+                this.tweens.killTweensOf(p); // 연결된 애니메이션 강제 종료
+                if (p.label) p.label.destroy();
+                p.destroy();
+              }
+            });
+          } catch (e) {
+            console.log("객체 삭제 중 에러 무시");
+          }
+          this.pockets = [];
+
+          const qData = this.generateMathQuestion();
+          this.questionProblem.setText(`${qData.question} = ?`);
+          this.currentAnswer = qData.answer;
+
+          let isSpecial = this.consecutiveCorrect >= 5;
+          if (isSpecial) this.consecutiveCorrect = 0;
+
+          const pocketY = 450;
+          for (let i = 0; i < 4; i++) {
+            const xPos = (this.cameras.main.width / 5) * (i + 1);
+            let pKey = isSpecial ? "goodPack_lock" : "defaultPack_lock";
+            const pocket = this.add
+              .sprite(xPos, pocketY, pKey)
+              .setOrigin(0.5)
+              .setInteractive({ useHandCursor: true })
+              .setVisible(showPockets)
+              .setScale(SCALE.POCKET)
+              .setDepth(15);
+
+            pocket.label = this.add
+              .text(xPos, pocketY + 40, qData.options[i], {
+                fontSize: "60px",
+                fill: "#000000",
+                fontStyle: "bold",
+              })
+              .setOrigin(0.5)
+              .setVisible(showPockets)
+              .setDepth(16);
+
+            if (isSpecial) {
+              this.tweens.add({
+                targets: [pocket],
+                scale: SCALE.POCKET * 1.1,
+                duration: 400,
+                yoyo: true,
+                repeat: -1,
+                ease: "Sine.easeInOut",
+              });
             }
-            const pocket = this.add.rectangle(xPos, yPos, 120, 120, pocketColor)
-                .setOrigin(0.5)
-                .setInteractive({ useHandCursor: true })
-                .setVisible(showPockets)
-                .setStrokeStyle(4, 0x000000, 0); 
-            
-            pocket.label = this.add.text(xPos, yPos, questionData.options[i], {
-                fontSize: '28px', fill: '#000000', fontStyle: 'bold'
-            }).setOrigin(0.5).setVisible(showPockets);
-            
-            if (isSpecialRound) {
-                this.tweens.add({
-                    targets: [pocket, pocket.label],
-                    scale: 1.1,
-                    duration: 300,
-                    yoyo: true,
-                    repeat: -1,
-                    ease: 'Sine.easeInOut'
-                });
-            }
-            
-            pocket.setData('value', questionData.options[i]);
-            pocket.setData('isSpecial', isSpecialRound); 
-            
-            pocket.on('pointerdown', () => {
-                this.onPocketClicked(pocket);
+
+            pocket.setData("value", qData.options[i]);
+            pocket.setData("isSpecial", isSpecial);
+            pocket.on("pointerdown", () => {
+              this.onPocketClicked(pocket);
             });
             this.pockets.push(pocket);
+          }
         }
-    }
-    
-    onPocketClicked(clickedPocket) {
-        // ... (이전과 동일) ...
-        if (!this.isGameStarted || this.isGameOver || !clickedPocket.active) return;
-        this.pockets.forEach(p => {
-            p.disableInteractive(); 
+
+        onPocketClicked(clickedPocket) {
+          // 💡 [안전장치 3] 중복 클릭 & 진행 중 클릭 완벽 차단
+          if (!this.isGameStarted || this.isGameOver || this.isProcessingTurn)
+            return;
+          this.isProcessingTurn = true; // 잠금
+
+          this.pockets.forEach((p) => {
+            p.disableInteractive();
             if (p === clickedPocket) {
-                p.setStrokeStyle(4, 0xFFFFFF, 1); 
+              p.setTexture(
+                p.getData("isSpecial") ? "goodPack_open" : "defaultPack_open"
+              );
+              if (p.label) p.label.setVisible(false);
+              this.tweens.killTweensOf(p); // 클릭된 주머니 애니메이션 멈춤
+              p.setScale(SCALE.POCKET);
             } else {
-                p.setScale(0.8); 
-                p.setAlpha(0.5); 
+              p.setAlpha(0.5);
             }
-        });
-        const selectedValue = clickedPocket.getData('value');
-        const isSpecial = clickedPocket.getData('isSpecial');
-        if (selectedValue === this.currentAnswer) {
-            clickedPocket.setFillStyle(0x00FF00); 
-            this.handleCorrect(isSpecial);
-        } else {
-            clickedPocket.setFillStyle(0xFF0000); 
-            this.handleIncorrect();
-        }
-        this.time.delayedCall(800, this.spawnPocketsWithQuestion, [true], this);
-    }
-    
-    handleCorrect(isSpecial) {
-        const fruitValue = isSpecial ? 3 : 1;
-        this.score += fruitValue;
-        this.consecutiveCorrect++;
-        this.updateBowlGraphic();
-        this.updateMalongStatus();
-    }
-    
-    handleIncorrect() {
-        this.malong.setFillStyle(0x555555); 
-        this.consecutiveCorrect = 0;
-        this.time.delayedCall(800, this.updateMalongStatus, [], this);
-    }
-    
-    updateBowlGraphic() {
-        // ... (이전과 동일) ...
-        let scoreKey = Math.min(this.score, 15);
-        const fruitColors = [
-            0x8B4513, // 0점 (빈 그릇)
-            0x9400D3, // 1점 (포도)
-            0xFF0000, // 2점 (사과)
-            0xFFA500, // 3점 (오렌지)
-            0xFFFF00, // 4점 (바나나)
-            0x00FF00, // 5점 (라임)
-            0x0000FF, // 6점 (블루베리)
-            0x800080, // 7점
-            0xFFC0CB, // 8점
-            0x00FFFF, // 9점
-            0x808000, // 10점
-            0xFFA07A, // 11점
-            0xFF6347, // 12점
-            0xDA70D6, // 13점
-            0xADFF2F, // 14점
-            0x4682B4  // 15점 (최대)
-        ];
-        this.bowl.setFillStyle(fruitColors[scoreKey]);
-    }
+          });
 
-    updateMalongStatus() {
-        // ... (이전과 동일) ...
-        if (this.isGameOver) {
-             this.malong.setFillStyle(0x00FF00);
-             return;
-        }
-        if (this.score >= 9) {
-            this.malong.setFillStyle(0x00FF00); 
-        } else if (this.score >= 6) {
-            this.malong.setFillStyle(0xFFFF00);
-        } else if (this.score >= 3) {
-            this.malong.setFillStyle(0xFFA500); 
-        } else {
-            this.malong.setFillStyle(0x9966ff); 
-        }
-    }
-    
-    endGame() {
-        this.isGameStarted = false; 
-        this.isGameOver = true;
-        this.updateMalongStatus(); 
-        
-        this.timerBg.setVisible(false);
-        this.timerBar.setVisible(false);
-        // 💡 [수정] (요청 1)
-        // 두 개의 텍스트 객체를 모두 숨김
-        this.questionLabel.setVisible(false);
-        this.questionProblem.setVisible(false);
-        
-        this.pockets.forEach(p => {
-            if (p && p.label) p.label.destroy();
-            if (p) p.destroy();
-        });
-        this.pockets = [];
+          const val = clickedPocket.getData("value");
+          const isSpecial = clickedPocket.getData("isSpecial");
 
-        // 💡 [수정] (요청 2)
-        // 점수 텍스트 Y 위치를 350으로 변경 (주머니 아래쪽, 그릇보다 훨씬 위)
-        const scoreTextY = 350; 
-        const scoreText = this.add.text(this.bowl.x, scoreTextY, `과일 ${this.score}개!`, {
-            fontSize: '40px', fill: '#FFFF00', fontStyle: 'bold',
-            stroke: '#000000', strokeThickness: 4
-        }).setOrigin(0.5);
+          if (val === this.currentAnswer)
+            this.handleCorrect(isSpecial, clickedPocket);
+          else this.handleIncorrect();
 
-        this.time.delayedCall(3000, () => {
-            if (scoreText) scoreText.setVisible(false);
-            
-            this.add.rectangle(this.cameras.main.width / 2, this.cameras.main.height / 2, this.cameras.main.width, this.cameras.main.height, 0x000000, 0.6)
+          this.time.delayedCall(
+            1000,
+            this.spawnPocketsWithQuestion,
+            [true],
+            this
+          );
+        }
+
+        handleCorrect(isSpecial, pocket) {
+          this.score += isSpecial ? 3 : 1;
+          this.fruitStep++; // 💡 과일 단계 1 증가
+          this.consecutiveCorrect++;
+
+          let fIdx = Math.min(this.fruitStep, 15);
+          let fKey = `fruit${fIdx}`;
+
+          // 💡 [안전장치] 이미지가 존재할 때만 애니메이션 실행
+          if (this.textures.exists(fKey)) {
+            const flyingFruit = this.add
+              .sprite(pocket.x, pocket.y - 50, fKey)
+              .setScale(0)
+              .setDepth(30);
+            this.tweens.add({
+              targets: flyingFruit,
+              x: this.bowl.x,
+              y: this.bowl.y - 100,
+              scale: 1.0,
+              duration: 600,
+              ease: "Back.easeOut",
+              onComplete: () => {
+                if (flyingFruit.active) flyingFruit.destroy(); // 안전하게 삭제
+                this.updateBowlGraphic();
+              },
+            });
+          } else {
+            this.updateBowlGraphic();
+          }
+
+          this.updateMalongStatus("happy");
+          this.time.delayedCall(1000, () => {
+            this.updateMalongStatus("default");
+          });
+        }
+
+        handleIncorrect() {
+          this.updateMalongStatus("sad");
+          this.consecutiveCorrect = 0;
+          this.time.delayedCall(800, () => {
+            this.updateMalongStatus("default");
+          });
+        }
+
+        updateBowlGraphic() {
+          // 💡 과일 단계(fruitStep) 기준으로 이미지 변경
+          let bKey = `bowl${Math.min(this.fruitStep, 15)}`;
+          if (this.textures.exists(bKey)) {
+            this.bowl.setTexture(bKey);
+          }
+        }
+
+        updateMalongStatus(state) {
+          if (this.isGameOver) return;
+          if (state === "happy") this.malong.setTexture("malong_happy");
+          else if (state === "sad") this.malong.setTexture("malong_sad");
+          else this.malong.setTexture("malong_default");
+        }
+
+        endGame() {
+          this.isGameStarted = false;
+          this.isGameOver = true;
+          this.isProcessingTurn = true; // 게임 종료 시 클릭 잠금
+
+          this.updateMalongStatus("happy");
+          this.timerBgGraphic.setVisible(false);
+          this.timerBar.setVisible(false);
+          this.quizBoard.setVisible(false);
+          this.quizIcon.setVisible(false);
+          this.questionProblem.setVisible(false);
+
+          // 💡 종료 시 안전하게 삭제
+          this.pockets.forEach((p) => {
+            if (p) {
+              this.tweens.killTweensOf(p);
+              if (p.label) p.label.destroy();
+              p.destroy();
+            }
+          });
+          this.pockets = [];
+
+          const scoreText = this.add
+            .text(this.bowl.x, 400, `과일 ${this.score}개!`, {
+              fontSize: "100px",
+              fill: "#FFFF00",
+              fontStyle: "bold",
+              stroke: "#000000",
+              strokeThickness: 8,
+            })
+            .setOrigin(0.5);
+
+          this.time.delayedCall(
+            3000,
+            () => {
+              scoreText.setVisible(false);
+              this.add
+                .rectangle(
+                  this.cameras.main.width / 2,
+                  this.cameras.main.height / 2,
+                  this.cameras.main.width,
+                  this.cameras.main.height,
+                  0x000000,
+                  0.6
+                )
                 .setDepth(100);
+              this.add
+                .text(
+                  this.cameras.main.width / 2,
+                  this.cameras.main.height / 2,
+                  "FINISH!",
+                  { fontSize: "150px", fill: "#FFFFFF", fontStyle: "bold" }
+                )
+                .setOrigin(0.5)
+                .setDepth(101);
+            },
+            [],
+            this
+          );
+        }
+      }
 
-            this.add.text(this.cameras.main.width / 2, this.cameras.main.height / 2, 'FINISH!', {
-                fontSize: '100px', fill: '#FFFFFF', fontStyle: 'bold'
-            }).setOrigin(0.5).setDepth(101);
-            
-        }, [], this);
-    }
-}
-
-
-const config = {
-    type: Phaser.AUTO,
-    backgroundColor: '#0055AA', 
-    scale: {
-        mode: Phaser.Scale.FIT,
-        autoCenter: Phaser.Scale.CENTER_BOTH,
-        width: 1280, 
-        height: 720  
-    },
-    scene: [GameScene]
-};
-
-const game = new Phaser.Game(config);
-
-</script>
-</body>
+      const config = {
+        type: Phaser.AUTO,
+        backgroundColor: "#000000",
+        scale: {
+          mode: Phaser.Scale.FIT,
+          autoCenter: Phaser.Scale.CENTER_BOTH,
+          width: 1920,
+          height: 1080,
+        },
+        scene: [GameScene],
+      };
+      const game = new Phaser.Game(config);
+    </script>
+  </body>
 </html>
