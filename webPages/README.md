@@ -18,6 +18,8 @@ git clone [저장소 주소]
 
 # 클론 후 프로젝트 폴더로 이동
 cd webPages
+```
+
 <br>
 
 ### 2\. 종속성 설치 (필수)
@@ -26,6 +28,7 @@ GitHub에는 무거운 라이브러리 파일이 포함된 `node_modules` 폴더
 
 ```bash
 npm install
+```
 <br>
 
 ### 3\. 개발 서버 실행
@@ -34,3 +37,4 @@ npm install
 
 ```bash
 npm run dev
+```
