@@ -2,10 +2,11 @@
 
 Figma 디자인을 기반으로 제작된 학습 자료 업로드 및 문제 검토 웹 애플리케이션입니다.
 React와 Vite를 사용하여 개발되었습니다.
+<br>
 
 ## 🚀 시작하기 (How to Start)
 
-이 프로젝트를 실행하려면 컴퓨터에 **Node.js**와 **npm (Node Package Manager)**이 설치되어 있어야 합니다.
+이 프로젝트를 실행하려면 컴퓨터에 Node.js와 npm (Node Package Manager)이 설치되어 있어야 합니다.
 <br>
 
 ### 1\. 프로젝트 파일 다운로드 및 이동
