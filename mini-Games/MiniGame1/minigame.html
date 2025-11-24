@@ -17,6 +17,7 @@
   <body>
     <script>
       const SCALE = {
+        // 스프라이트 크기 조절하는 곳
         POCKET: 1.0,
         MALONG: 1.0,
         BOWL: 1.0,
@@ -40,6 +41,7 @@
         }
 
         preload() {
+          // 이미지를 로딩하는 부분입니다.
           this.load.setPath("assets/Sprites/");
 
           this.load.image("background", "Background.png");
@@ -65,6 +67,7 @@
         }
 
         create() {
+          // 게임을 1920x1080 크기로 생성합니다. 게임 스프라이트들의 위치와 크기를 지정합니다.
           const gameWidth = 1920;
           const gameHeight = 1080;
           const centerX = gameWidth / 2;
@@ -166,23 +169,29 @@
 
           this.time.delayedCall(3000, this.startGame, [], this);
           this.spawnPocketsWithQuestion(false);
+          // Start 표기가 잠깐 뜨고 문제가 시작됩니다.
         }
 
         startGame() {
+          // 게임을 시작하는 부분입니다.
           this.isGameStarted = true;
           this.readyOverlay.destroy();
           this.readyText.destroy();
+          // ready 글씨가 띄워지는 창을 지웁니다.
+
           this.pockets.forEach((p) => {
             p.setVisible(true);
             if (p.label) p.label.setVisible(true);
           });
           this.setupTimers();
+          // 모든 컴포넌트들을 보이게 하고, 타이머를 세팅합니다.
         }
 
         setupTimers() {
           this.time.addEvent({
             delay: 1000,
             callback: () => {
+              // 타이머의 위치와 크기를 지정하는 부분입니다.
               if (!this.isGameStarted || this.isGameOver) return;
               this.gameTimer--;
               this.timerBar.scaleX = this.gameTimer / this.gameTime;
@@ -195,6 +204,7 @@
         }
 
         generateMathQuestion() {
+          // 일단 기본적으로 사칙연산 문제를 생성하는 함수입니다.
           const num1 = Phaser.Math.Between(1, 15);
           const num2 = Phaser.Math.Between(1, 15);
           const operators = ["+", "-", "*"];
@@ -245,8 +255,11 @@
           this.pockets = [];
 
           const qData = this.generateMathQuestion();
+          // 함수로 문제를 만들어서 qData에 넣습니다.
+
           this.questionProblem.setText(`${qData.question} = ?`);
           this.currentAnswer = qData.answer;
+          // 문제 부분과 현재 답 부분을 정합니다.
 
           let isSpecial = this.consecutiveCorrect >= 5;
           if (isSpecial) this.consecutiveCorrect = 0;
@@ -291,9 +304,11 @@
             });
             this.pockets.push(pocket);
           }
+          // 주머니 위에 텍스트가 올라가있도록 하고, 맞는 주머니를 출력하는 부분입니다.
         }
 
         onPocketClicked(clickedPocket) {
+          // 주머니를 클릭한 경우를 처리하는 함수입니다.
           // 💡 [안전장치 3] 중복 클릭 & 진행 중 클릭 완벽 차단
           if (!this.isGameStarted || this.isGameOver || this.isProcessingTurn)
             return;
@@ -317,8 +332,9 @@
           const isSpecial = clickedPocket.getData("isSpecial");
 
           if (val === this.currentAnswer)
+            // 답을 맞췄으면 handleCorrect 함수를 호출합니다.
             this.handleCorrect(isSpecial, clickedPocket);
-          else this.handleIncorrect();
+          else this.handleIncorrect(); // 답을 틀렸으면 handleIncorrect 함수를 호출합니다.
 
           this.time.delayedCall(
             1000,
@@ -329,6 +345,7 @@
         }
 
         handleCorrect(isSpecial, pocket) {
+          // 맞는 주머니를 선택한 경우
           this.score += isSpecial ? 3 : 1;
           this.fruitStep++; // 💡 과일 단계 1 증가
           this.consecutiveCorrect++;
@@ -358,14 +375,15 @@
             this.updateBowlGraphic();
           }
 
-          this.updateMalongStatus("happy");
+          this.updateMalongStatus("happy"); // 말롱이는 기뻐합니다.
           this.time.delayedCall(1000, () => {
             this.updateMalongStatus("default");
           });
         }
 
         handleIncorrect() {
-          this.updateMalongStatus("sad");
+          // 주머니를 잘 못고르면 실행되는 함수입니다.
+          this.updateMalongStatus("sad"); // 말롱이는 슬퍼합니다.
           this.consecutiveCorrect = 0;
           this.time.delayedCall(800, () => {
             this.updateMalongStatus("default");
@@ -373,6 +391,7 @@
         }
 
         updateBowlGraphic() {
+          // 그릇의 상태를 갱신하는 함수입니다.
           // 💡 과일 단계(fruitStep) 기준으로 이미지 변경
           let bKey = `bowl${Math.min(this.fruitStep, 15)}`;
           if (this.textures.exists(bKey)) {
@@ -381,6 +400,7 @@
         }
 
         updateMalongStatus(state) {
+          // 말롱이의 기분을 조절하는 함수입니다.
           if (this.isGameOver) return;
           if (state === "happy") this.malong.setTexture("malong_happy");
           else if (state === "sad") this.malong.setTexture("malong_sad");
@@ -388,6 +408,7 @@
         }
 
         endGame() {
+          // 게임이 끝났을 때, 과일 갯수를 출력하고 finish와 컴포넌트 삭제를 하는 함수입니다.
           this.isGameStarted = false;
           this.isGameOver = true;
           this.isProcessingTurn = true; // 게임 종료 시 클릭 잠금
