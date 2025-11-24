@@ -1,42 +1,75 @@
-#root {
-  max-width: 1280px;
+/* ================= 공동 스타일 (Global) ================= */
+/* 전체 페이지 배경색과 폰트 설정 */
+body {
+  margin: 0;
+  background-color: #f8f9fa;
+  font-family: "Pretendard", sans-serif;
+  color: #333;
+}
+
+/* 화면 중앙 정렬을 위한 컨테이너 */
+.container {
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  padding: 40px 20px;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+/* 부드럽게 나타나는 애니메이션 효과 */
+.fade-in {
+  animation: fadeIn 0.5s ease-in-out;
 }
 
-@keyframes logo-spin {
+@keyframes fadeIn {
   from {
-    transform: rotate(0deg);
+    opacity: 0;
+    transform: translateY(10px);
   }
   to {
-    transform: rotate(360deg);
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+/* 헤더 & 타이틀 공통 스타일 */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
 }
 
-.card {
-  padding: 2em;
+.back-btn {
+  border: 1px solid #ddd;
+  background: white;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: 0.2s;
 }
 
-.read-the-docs {
-  color: #888;
+.back-btn:hover {
+  background: #f1f1f1;
+}
+
+.create-btn {
+  background-color: #0f172a;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 6px;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.title-section h1 {
+  margin: 0 0 8px 0;
+  font-size: 26px;
+  font-weight: 700;
+  color: #111;
+}
+
+.title-section p {
+  color: #666;
+  margin: 0 0 30px 0;
+  font-size: 15px;
 }
