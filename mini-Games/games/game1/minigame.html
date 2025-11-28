@@ -2,7 +2,7 @@
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
-    <title>말롱이의 과일 찾기</title>
+    <title>맛있는 과일이 먹고 싶어!</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
     <style>
       /* 💡 [수정] 폰트 경로를 로컬 파일로 지정 */
@@ -34,15 +34,16 @@
 
       class GameScene extends Phaser.Scene {
         constructor() {
+          // 사용할 변수들을 저장합니다.
           super("GameScene");
           this.score = 0;
-          this.gameTime = 40;
-          this.gameTimer = 40;
-          this.isGameStarted = false;
-          this.isGameOver = false;
-          this.pockets = [];
-          this.currentAnswer = 0;
-          this.consecutiveCorrect = 0;
+          this.gameTime = 40; // 게임 소요 시간
+          this.gameTimer = 40; // 타이머에 사용할 시간
+          this.isGameStarted = false; // ready? 와 게임을 구별하기 위한 플래그
+          this.isGameOver = false; // 게임과 finish!를 구별하기 위한 플래그
+          this.pockets = []; // 컴포넌트를 관리할 때 사용하는 리스트
+          this.currentAnswer = 0; // 현재 답인 주머니의 번호
+          this.consecutiveCorrect = 0; // 연속으로 몇 문제를 맞췄는지에 대한 플래그
           this.isProcessingTurn = false; // 💡 중복 클릭 방지 플래그
           this.fruitStep = 0; // 💡 과일 단계 변수
         }
@@ -198,18 +199,18 @@
 
         setupTimers() {
           this.time.addEvent({
-            delay: 1000,
+            delay: 1000, // 1초마다 한번씩 이 함수가 수행됩니다.
             callback: () => {
               // 타이머의 위치와 크기를 지정하는 부분입니다.
-              if (!this.isGameStarted || this.isGameOver) return;
+              if (!this.isGameStarted || this.isGameOver) return; // 만약 게임 중이 아니라면 타이머가 감소하지 않습니다.
               this.gameTimer--;
-              this.timerBar.scaleX = this.gameTimer / this.gameTime;
+              this.timerBar.scaleX = this.gameTimer / this.gameTime; // 타이머 그래픽을 조정합니다.
               if (this.timerBar.scaleX <= 0.3)
                 this.timerBar.setFillStyle(0xff0000);
             },
             loop: true,
           });
-          this.time.delayedCall(this.gameTime * 1000, this.endGame, [], this);
+          this.time.delayedCall(this.gameTime * 1000, this.endGame, [], this); // gameTime초만큼 지나면, endGame 함수를 호출합니다.
         }
 
         generateMathQuestion() {
@@ -234,94 +235,112 @@
               qStr = `${num1} * ${num2}`;
               break;
           }
+
           const options = [answer];
+          let safeGuard = 0; // 💡 [수정] 무한 루프 방지 카운트
+
           while (options.length < 4) {
+            safeGuard++;
+            if (safeGuard > 100) {
+              // 100번 시도해도 못 찾으면 그냥 아무 숫자나 넣어서 멈춤 방지
+              options.push(answer + options.length + 1);
+              continue;
+            }
+
             let d = answer + Phaser.Math.Between(-10, 10);
-            if (d >= 0 && d !== answer && !options.includes(d)) options.push(d);
+            if (d >= 0 && d !== answer && !options.includes(d)) {
+              options.push(d);
+            }
           }
+
           Phaser.Utils.Array.Shuffle(options);
           return { question: qStr, answer: answer, options: options };
         }
 
         spawnPocketsWithQuestion(showPockets = true) {
-          if (this.isGameOver) return;
+          // 주머니를 생성하는 함수입니다.
+          if (this.isGameOver) return; // 만약 게임이 끝났다면 주머니를 생성해선 안됩니다.
 
           // 💡 [안전장치 1] 플래그 해제 (새 라운드 시작)
-          this.isProcessingTurn = false;
+          this.isProcessingTurn = false; // 새 주머니가 생성되면, 클릭할 수 있게 이 값을 false로 바꿔준다.
 
           // 💡 [안전장치 2] 안전하게 객체 삭제 (Try-Catch & 애니메이션 제거)
           try {
+            // 주머니를 삭제하는 로직이지만, 만약 주머니가 이미 삭제되었다면 그냥 catch 문으로 넘어가기 위해 try-catch를 사용한다.
             this.pockets.forEach((p) => {
               if (p) {
-                this.tweens.killTweensOf(p); // 연결된 애니메이션 강제 종료
-                if (p.label) p.label.destroy();
+                this.tweens.killTweensOf(p); // 주머니에 연결된 애니메이션 강제 종료
+                if (p.label) p.label.destroy(); // 애니메이션 강제 종료 전 destroy를 해버리면, 애니메이션을 수행해야하는 객체를 못 찾아 에러가 난다.
                 p.destroy();
               }
             });
-          } catch (e) {
-            console.log("객체 삭제 중 에러 무시");
+            this.pockets = [];
+
+            const qData = this.generateMathQuestion();
+            // 함수로 문제를 만들어서 qData에 넣습니다.
+
+            this.questionProblem.setText(`${qData.question} = ?`);
+            this.currentAnswer = qData.answer;
+            // 문제 부분과 현재 답 부분을 정합니다.
+
+            let isSpecial = this.consecutiveCorrect >= 5; // 만약 유저가 5개 연속으로 맞춘 경우
+            if (isSpecial) this.consecutiveCorrect = 0; // 연속 문제 맞춘 개수를 리셋합니다.
+
+            const pocketY = 450;
+            for (let i = 0; i < 4; i++) {
+              const xPos = (this.cameras.main.width / 5) * (i + 1);
+              let pKey = isSpecial ? "goodPack_lock" : "defaultPack_lock"; // 특별 주머니인지 아닌지 구분하는 로직
+              const pocket = this.add
+                .sprite(xPos, pocketY, pKey)
+                .setOrigin(0.5)
+                .setInteractive({ useHandCursor: true })
+                .setVisible(showPockets)
+                .setScale(SCALE.POCKET)
+                .setDepth(15);
+
+              pocket.label = this.add
+                .text(xPos, pocketY + 40, qData.options[i], {
+                  fontSize: "52px",
+                  fill: "#000000",
+                  fontFamily: "Jua",
+                  fontStyle: "bold",
+                })
+                .setOrigin(0.5)
+                .setVisible(showPockets)
+                .setDepth(16);
+
+              pocket.setData("value", qData.options[i]);
+              pocket.setData("isSpecial", isSpecial);
+              pocket.on("pointerdown", () => {
+                // 해당 주머니를 클릭했을 때, onPocketClicked가 호출된다.
+                this.onPocketClicked(pocket); // 인수로 pocket(번호, 특별 주머니 여부) 객체를 보낸다.
+              });
+              this.pockets.push(pocket); // 해당 객체를 컴포넌트를 관리하는 pockets 리스트에 넣어둔다.
+            }
+            // 주머니 위에 텍스트가 올라가있도록 하고, 맞는 주머니를 출력하는 부분입니다.
+          } catch (error) {
+            console.error("다음 문제 생성 중 에러 발생:", error);
+            // 에러가 나도 게임이 멈추지 않게 다시 시도하거나 넘어가는 처리
           }
-          this.pockets = [];
-
-          const qData = this.generateMathQuestion();
-          // 함수로 문제를 만들어서 qData에 넣습니다.
-
-          this.questionProblem.setText(`${qData.question} = ?`);
-          this.currentAnswer = qData.answer;
-          // 문제 부분과 현재 답 부분을 정합니다.
-
-          let isSpecial = this.consecutiveCorrect >= 5;
-          if (isSpecial) this.consecutiveCorrect = 0;
-
-          const pocketY = 450;
-          for (let i = 0; i < 4; i++) {
-            const xPos = (this.cameras.main.width / 5) * (i + 1);
-            let pKey = isSpecial ? "goodPack_lock" : "defaultPack_lock";
-            const pocket = this.add
-              .sprite(xPos, pocketY, pKey)
-              .setOrigin(0.5)
-              .setInteractive({ useHandCursor: true })
-              .setVisible(showPockets)
-              .setScale(SCALE.POCKET)
-              .setDepth(15);
-
-            pocket.label = this.add
-              .text(xPos, pocketY + 40, qData.options[i], {
-                fontSize: "52px",
-                fill: "#000000",
-                fontFamily: "Jua",
-                fontStyle: "bold",
-              })
-              .setOrigin(0.5)
-              .setVisible(showPockets)
-              .setDepth(16);
-
-            pocket.setData("value", qData.options[i]);
-            pocket.setData("isSpecial", isSpecial);
-            pocket.on("pointerdown", () => {
-              this.onPocketClicked(pocket);
-            });
-            this.pockets.push(pocket);
-          }
-          // 주머니 위에 텍스트가 올라가있도록 하고, 맞는 주머니를 출력하는 부분입니다.
         }
 
         onPocketClicked(clickedPocket) {
           if (!this.isGameStarted || this.isGameOver || this.isProcessingTurn)
-            return;
-          this.isProcessingTurn = true;
+            return; // 만약 게임 중이 아니거나, 이미 주머니를 선택해서 잠시 기다리는 상황일 때면 진행하지 않는다.
+          this.isProcessingTurn = true; // 이 값을 true로 함으로서 다른 주머니를 클릭할 수 없게 한다.
 
           this.pockets.forEach((p) => {
-            p.disableInteractive();
+            p.disableInteractive(); // 해당 주머니를 더이상 클릭할 수 없게 한다.
             if (p === clickedPocket) {
               p.setTexture(
                 p.getData("isSpecial") ? "goodPack_open" : "defaultPack_open"
-              );
-              if (p.label) p.label.setVisible(false);
-              this.tweens.killTweensOf(p);
+              ); // 주머니가 특별한 주머니인지 아닌지에 따라 출력할 텍스처가 다르다.
+              if (p.label) p.label.setVisible(false); // 클릭한 주머니의 문제 답은 사라진다.
+              this.tweens.killTweensOf(p); // 클릭한 주머니의 애니메이션을 꺼버린다.
               p.setScale(SCALE.POCKET);
             } else {
-              p.setAlpha(0.5);
+              // 만약 선택한 주머니가 아니라면
+              p.setAlpha(0.5); // 투명도를 50%로 조절해, 선택하지 않았음을 시각적으로 표현합니다.
             }
           });
 
@@ -329,29 +348,30 @@
           const isSpecial = clickedPocket.getData("isSpecial");
 
           if (val === this.currentAnswer)
+            // 만약 선택한 주머니가 제대로 된 주머니인 경우
             this.handleCorrect(isSpecial, clickedPocket);
-          else this.handleIncorrect();
+          // handleCorrect 함수를 호출
+          else this.handleIncorrect(); // 틀린 경우 handleInCorrect 함수를 호출
 
-          // 시간을 1000 -> 1400으로 늘렸습니다.
+          // 대기 시간을 1000 -> 1400으로 늘렸습니다.
           // 과일이 0.7초 대기 + 0.6초 이동 = 1.3초가 걸리므로,
-          // 넉넉하게 1.4초 뒤에 다음 문제가 나오게 해야 안전합니다.
-          this.time.delayedCall(
-            1500,
-            this.spawnPocketsWithQuestion,
-            [true],
-            this
-          );
+          // 넉넉하게 1.4초 뒤에 다음 문제가 나오게 해야 프리징이 일어나지 않습니다.
+          this.time.delayedCall(1400, () => {
+            this.spawnPocketsWithQuestion(true);
+          });
         }
 
         handleCorrect(isSpecial, pocket) {
-          this.score += isSpecial ? 3 : 1;
-          this.fruitStep++;
-          this.consecutiveCorrect++;
+          // 주머니를 잘 맞춘 경우에 호출됩니다.
+          this.score += isSpecial ? 3 : 1; // 특별한 주머니라면 3점, 아니면 1점을 추가합니다.
+          this.fruitStep++; // 과일 단계를 바꿉니다.
+          this.consecutiveCorrect++; // 연속으로 문제를 맞춘 수를 증가시킵니다.
 
           let fIdx = Math.min(this.fruitStep, 15);
           let fKey = `fruit${fIdx}`;
 
           if (this.textures.exists(fKey)) {
+            // 현재 과일 단계에 맞는 텍스처가 존재하는 경우
             const flyingFruit = this.add
               .sprite(pocket.x, pocket.y - 50, fKey)
               .setScale(0)
@@ -365,9 +385,9 @@
               ease: "Back.out",
             });
 
-            // 2. 0.7초(700ms) 대기 후 날아가기
+            // 2. 0.7초(700ms) 대기 후 그릇으로 날아가기
             this.time.delayedCall(700, () => {
-              // 안전장치: 과일이 그사이 삭제됐으면 실행 안 함
+              // 안전장치: 과일이 그사이 삭제됐으면 실행하지 않습니다.
               if (!flyingFruit.active) return;
 
               this.tweens.add({
@@ -377,13 +397,13 @@
                 duration: 600,
                 ease: "Back.in", // 쏙 들어가는 느낌
                 onComplete: () => {
-                  if (flyingFruit.active) flyingFruit.destroy();
-                  this.updateBowlGraphic();
+                  if (flyingFruit.active) flyingFruit.destroy(); // 그릇으로 날아간 뒤 바로 과일을 삭제합니다.
+                  this.updateBowlGraphic(); // 그리고 그릇 그래픽을 갱신합니다.
                 },
               });
             });
           } else {
-            this.updateBowlGraphic();
+            this.updateBowlGraphic(); // 혹시 과일 텍스처가 유실되었을 때도, 게임이 돌아가게 만드는 코드
           }
 
           this.updateMalongStatus("happy");
@@ -394,10 +414,10 @@
         }
 
         handleIncorrect() {
-          // 주머니를 잘 못고르면 실행되는 함수입니다.
+          // 주머니를 잘못 고르면 실행되는 함수입니다.
           this.updateMalongStatus("sad"); // 말롱이는 슬퍼합니다.
           this.consecutiveCorrect = 0;
-          this.time.delayedCall(800, () => {
+          this.time.delayedCall(1400, () => {
             this.updateMalongStatus("default");
           });
         }
@@ -422,7 +442,7 @@
         endGame() {
           // 게임이 끝났을 때, 과일 갯수를 출력하고 finish와 컴포넌트 삭제를 하는 함수입니다.
           this.isGameStarted = false;
-          this.isGameOver = true;
+          this.isGameOver = true; // 이 변수가 켜짐으로서 finish 상태를 의미하게 됩니다.
           this.isProcessingTurn = true; // 게임 종료 시 클릭 잠금
 
           this.updateMalongStatus("default");
@@ -431,9 +451,11 @@
           this.quizBoard.setVisible(false);
           this.quizIcon.setVisible(false);
           this.questionProblem.setVisible(false);
+          // 모든 컴포넌트들을 꺼버립니다.
 
           // 💡 종료 시 안전하게 삭제
           this.pockets.forEach((p) => {
+            // 주머니들을 안전하게 삭제합니다.
             if (p) {
               this.tweens.killTweensOf(p);
               if (p.label) p.label.destroy();
@@ -452,8 +474,10 @@
               strokeThickness: 8,
             })
             .setOrigin(0.5);
+          // 점수를 출력하는 부분입니다.
 
           this.time.delayedCall(
+            // 점수를 출력한 뒤 3초 뒤에, finish 창을 띄웁니다.
             3000,
             () => {
               scoreText.setVisible(false);
@@ -465,7 +489,7 @@
                   this.cameras.main.height,
                   0x000000,
                   0.6
-                )
+                ) // 약간 검은 반투명 화면을 띄우는 부분입니다.
                 .setDepth(100);
               this.add
                 .text(
@@ -480,7 +504,7 @@
                   }
                 )
                 .setOrigin(0.5)
-                .setDepth(101);
+                .setDepth(101); // depth가 반투명 화면보다 크므로 화면 위에 나옵니다.
             },
             [],
             this
