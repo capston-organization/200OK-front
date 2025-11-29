@@ -1,0 +1,243 @@
+/* src/pages/UploadPage.css */
+
+.container {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 40px;
+  background-color: #f8f9fa;
+  overflow: hidden; /* 업로드 페이지는 스크롤 없음 */
+}
+
+/* 💡 [수정] 헤더: 양쪽 끝 정렬 */
+.header {
+  flex-shrink: 0;
+  height: 60px;
+  display: flex;
+  justify-content: space-between; /* 좌우 끝으로 배치 */
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.back-btn {
+  background: none;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+/* 💡 [추가] 우측 상단 게임 생성 버튼 스타일 */
+.header-generate-btn {
+  background: linear-gradient(135deg, #4f46e5, #3b82f6);
+  color: white;
+  padding: 14px 32px; /* 버튼 덩치 키우기 (상하 14px, 좌우 32px) */
+  font-size: 1.4rem; /* 글자랑 아이콘(✨) 크기 키우기 */
+
+  border-radius: 10px; /* 둥글기 살짝 조정 */
+  font-weight: 800; /* 글자 더 굵게 */
+  box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
+  transition: all 0.2s ease;
+  letter-spacing: 0.5px; /* 글자 간격 살짝 넓혀서 시원하게 */
+}
+.header-generate-btn:hover {
+  transform: translateY(-3px) scale(1.02); /* 마우스 올리면 살짝 떠오르며 커짐 */
+  box-shadow: 0 8px 15px rgba(59, 130, 246, 0.4);
+}
+
+/* 타이틀 */
+.title-section {
+  flex-shrink: 0;
+  margin-bottom: 20px;
+}
+.title-section h1 {
+  font-size: 3rem;
+  color: #0f172a;
+  margin-bottom: 5px;
+}
+.title-section p {
+  color: #64748b;
+  font-size: 1.3rem; /* 💡 1rem -> 1.15rem으로 키움 (원하는 크기로 조절) */
+  font-weight: 500; /* 살짝 더 굵게 */
+}
+
+/* 레이아웃 */
+.upload-layout {
+  display: flex;
+  gap: 24px;
+  flex: 1;
+  min-height: 0;
+  padding-bottom: 20px;
+}
+
+/* 왼쪽 패널 */
+.left-panel {
+  flex: 2;
+  background: white;
+  padding: 24px;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  height: 100%; /* 부모 높이 꽉 채우기 */
+}
+
+.panel-header {
+  margin-bottom: 15px;
+}
+.panel-header h3 {
+  font-size: 24px;
+  color: #1e293b;
+  margin: 0;
+}
+.sub-desc {
+  font-size: 18px;
+  color: #94a3b8;
+}
+
+.tab-group {
+  display: flex;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+}
+.tab-btn {
+  flex: 1;
+  padding: 10px;
+  border-radius: 6px;
+  font-size: 1.3rem; /* 💡 여기에 글자 크기 추가! (기본값 0.9~1rem 정도에서 키움) */
+  font-weight: 700; /* 💡 글자도 더 굵게 */
+  color: #64748b;
+  background: transparent;
+}
+.tab-btn.active {
+  background: white;
+  color: #0f172a;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.input-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.text-input-wrapper,
+.file-upload-wrapper,
+.url-input-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.main-textarea {
+  width: 100%;
+  flex: 1;
+  padding: 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  resize: none;
+  background: #f8fafc;
+  outline: none;
+
+  font-size: 1.3rem; /* 💡 글자 크기 확대! */
+  line-height: 1.6;
+}
+/* 텍스트 입력창의 안내 문구(placeholder)도 같이 키우고 싶다면 */
+.main-textarea::placeholder {
+  font-size: 1.3rem;
+}
+
+.main-textarea:focus {
+  border-color: #3b82f6;
+  background: white;
+}
+
+.file-upload-wrapper {
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  justify-content: center;
+  align-items: center;
+  background: #f8fafc;
+}
+.upload-box {
+  font-size: 1.3rem; /* 💡 "여기로 파일을..." 글자 대폭 확대 */
+  color: #64748b;
+  margin-bottom: 25px; /* 버튼과의 간격도 조금 넓힘 */
+  font-weight: 500;
+  text-align: center;
+}
+.upload-box .icon {
+  font-size: 36px;
+  display: block;
+  margin-bottom: 10px;
+}
+.upload-btn-label {
+  display: inline-block;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.url-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 1.3rem; /* 💡 글자 크기 확대! */
+  line-height: 1.6;
+}
+
+/* 오른쪽 패널 */
+.right-panel {
+  flex: 1;
+  background: white;
+  padding: 24px;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+
+  height: 100%; /* 높이 꽉 채우기 */
+  overflow-y: auto; /* 필요시 내부 스크롤 */
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.form-group label {
+  display: block;
+  font-size: 22px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 6px;
+}
+.custom-select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  outline: none;
+  font-size: 1.2rem; /* 💡 글자 크기 확대! */
+  line-height: 1.6;
+}
+
+.fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

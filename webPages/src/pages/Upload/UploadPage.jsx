@@ -1,13 +1,27 @@
 import React, { useState } from "react";
-import "./UploadPage.css"; // ★ CSS 파일 연결!
+import { useNavigate } from "react-router-dom";
+import "./UploadPage.css";
 
-const UploadPage = ({ onNext }) => {
-  const [inputType, setInputType] = useState("text"); // text, file, url
+const UploadPage = () => {
+  const [inputType, setInputType] = useState("text");
+  const navigate = useNavigate();
+
+  const handleGenerate = () => {
+    navigate("/problemReview");
+  };
 
   return (
     <div className="container fade-in">
       <header className="header">
-        <button className="back-btn">← 대시보드로</button>
+        {/* 왼쪽: 뒤로가기 */}
+        <button className="back-btn" onClick={() => navigate("/")}>
+          ← 대시보드로
+        </button>
+
+        {/* 💡 [수정] 오른쪽: 게임 생성 버튼을 여기로 옮김 */}
+        <button className="header-generate-btn" onClick={handleGenerate}>
+          ✨ 게임 생성하기
+        </button>
       </header>
 
       <div className="title-section">
@@ -49,7 +63,6 @@ const UploadPage = ({ onNext }) => {
           <div className="input-area">
             {inputType === "text" && (
               <div className="text-input-wrapper">
-                <p className="input-guide">문제 자료를 직접 입력하세요</p>
                 <textarea
                   className="main-textarea"
                   placeholder="예시: 1. 한국의 수도는? 답: 서울"
@@ -62,18 +75,14 @@ const UploadPage = ({ onNext }) => {
                   <span className="icon">📂</span>
                   <p>여기로 파일을 드래그하거나</p>
                   <label className="upload-btn-label">
-                    파일 업로드하세요!
+                    파일 선택
                     <input type="file" style={{ display: "none" }} />
                   </label>
-                  <p className="file-support">지원 형식: PDF, DOCX, TXT, HWP</p>
                 </div>
               </div>
             )}
             {inputType === "url" && (
               <div className="url-input-wrapper">
-                <p className="input-guide">
-                  학습 자료가 있는 웹페이지 주소를 입력하세요
-                </p>
                 <input
                   type="text"
                   className="url-input"
@@ -88,9 +97,6 @@ const UploadPage = ({ onNext }) => {
         <section className="right-panel">
           <div className="panel-header">
             <h3>⚙ 간단한 게임 설정</h3>
-            <span className="sub-desc">
-              AI가 자동으로 최적의 게임을 생성합니다
-            </span>
           </div>
 
           <div className="settings-form">
@@ -130,10 +136,6 @@ const UploadPage = ({ onNext }) => {
               </select>
             </div>
           </div>
-
-          <button className="generate-btn" onClick={onNext}>
-            ✨ 게임 생성
-          </button>
         </section>
       </div>
     </div>
