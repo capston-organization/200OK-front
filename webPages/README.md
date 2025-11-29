@@ -6,6 +6,7 @@ React와 Vite를 사용하여 개발되었습니다.
 
 # 💻 Project Structure (폴더 구조)
 
+```bash
 2000K-FRONT/
 ├── mini-Games/                # 🎮 Phaser 3로 제작된 미니 게임 소스 코드
 │   ├── assets/                # 게임 전용 이미지, 폰트, 사운드 리소스
@@ -26,7 +27,9 @@ React와 Vite를 사용하여 개발되었습니다.
         │   └── Games/         # [STEP 3] Phaser 게임 구동 페이지 (Iframe)
         ├── App.jsx            # 라우팅(Routes) 설정 진입점
         └── main.jsx           # React DOM 렌더링 진입점
-        
+```
+
+
 
 ## 🚀 시작하기 (How to Start)
 
